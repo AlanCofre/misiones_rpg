@@ -1,10 +1,9 @@
 #vamos a crear la clase Personaje y Mision. Y la base declarativa para cear las tablas
-from app.database import Base
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, declarative_base
 
 # Base para los modelos ORM
-Base = declarative_base
+Base = declarative_base()
 
 class Personaje(Base):
     __tablename__ = "personajes"
