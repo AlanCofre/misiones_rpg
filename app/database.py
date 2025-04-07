@@ -8,7 +8,8 @@ DATABASE_URL = "sqlite:///./rpg.db"
 # crear el motor de la base de datos, la conexion con SQLite
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    connect_args={"check_same_thread": False},
+    echo=True
 )
 
 #crear la sesion para interactuar con la BD

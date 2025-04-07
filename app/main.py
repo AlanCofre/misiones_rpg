@@ -13,5 +13,5 @@ app.include_router(router)
 
 #inicializar base de datos al iniciar app
 @app.on_event("startup")
-def startup():
+async def startup_event():
     init_db()
