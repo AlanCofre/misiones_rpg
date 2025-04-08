@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app import models, schemas, database, cola
+from app import models, schemas, database
 
 router = APIRouter()
-cola_misiones = cola.ColaMisiones()
 
 def get_db():
     db = database.SessionLocal()
@@ -30,37 +29,29 @@ def crear_mision(mision: schemas.MisionCreate, db: Session = Depends(get_db)):
     db.add(nueva)
     db.commit()
     db.refresh(nueva)
-    cola_misiones.agregar_mision(nueva.id)
     return nueva
 
 @router.post("/personajes/{personaje_id}/misiones/{mision_id}", response_model=schemas.PersonajeMisionSchema)
 def aceptar_mision(personaje_id: int, mision_id: int, db: Session = Depends(get_db)):
+    personaje = db.query(models.Personaje).get(personaje_id)
+    mision = db.query(models.Mision).get(mision_id)
+    if not personaje or not mision:
+        raise HTTPException(status_code=404, detail="Personaje o misión no encontrada.")
     
-    #verificar  existencia del personaje
-    personaje = db.query(models.Personaje).filter(models.Personaje.id == personaje_id).first()
-    if not personaje:
-        raise HTTPException(status_code=404, detail="Personaje no encontrado.")
+    existe = db.query(models.PersonajeMision).filter_by(personaje_id=personaje_id, mision_id=mision_id).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Misión ya asignada.")
     
-    #verificar exitencia de la mision
-    mision = db.query(models.Mision).filter(models.Mision.id == mision_id).first()
-    if not mision:
-        raise HTTPException(status_code=404, detail="Mision no encontrada.")
-    
-    #verificar si la mision ya fue asignada al personaje
-    existente = db.query(models.PersonajeMision).filter_by(personaje_id=personaje_id, mision_id=mision_id).first()
-    if existente:
-        raise HTTPException(status_code=404, detail="Esta mision ya está asignada al personaje.")
-    
-    #calcular orden: ultimo +1
-    ultimo = db.query(models.PersonajeMision).filter_by(personaje_id=personaje_id).order_by(models.PersonajeMision.orden.desc()).first()
-    nuevo_orden = ultimo.orden + 1 if ultimo else 0
+    ultimo = db.query(models.PersonajeMision)\
+        .filter_by(personaje_id=personaje_id)\
+        .order_by(models.PersonajeMision.orden.desc()).first()
+    orden = ultimo.orden + 1 if ultimo else 0
 
     asignacion = models.PersonajeMision(
-        personaje_id = personaje_id,
-        mision_id = mision_id,
-        orden = nuevo_orden
+        personaje_id=personaje_id,
+        mision_id=mision_id,
+        orden=orden
     )
-
     db.add(asignacion)
     db.commit()
     db.refresh(asignacion)
@@ -68,46 +59,28 @@ def aceptar_mision(personaje_id: int, mision_id: int, db: Session = Depends(get_
 
 @router.get("/personajes/{personaje_id}/misiones", response_model=list[schemas.MisionSchema])
 def misiones_personaje(personaje_id: int, db: Session = Depends(get_db)):
-    # Verificar que el personaje exista
-    personaje = db.query(models.Personaje).filter(models.Personaje.id == personaje_id).first()
-    if not personaje:
+    if not db.query(models.Personaje).get(personaje_id):
         raise HTTPException(status_code=404, detail="Personaje no encontrado.")
-
-    # Obtener asignaciones en orden FIFO
-    asignaciones = (
-        db.query(models.PersonajeMision)
-        .filter(models.PersonajeMision.personaje_id == personaje_id)
-        .order_by(models.PersonajeMision.orden)
-        .all()
-    )
-
-    # Obtener todas las misiones correspondientes
-    misiones = [a.mision for a in asignaciones]
-    return misiones
+    
+    asignaciones = db.query(models.PersonajeMision)\
+        .filter_by(personaje_id=personaje_id)\
+        .order_by(models.PersonajeMision.orden).all()
+    return [a.mision for a in asignaciones]
 
 @router.post("/personajes/{personaje_id}/completar", response_model=schemas.MisionSchema)
 def completar_mision(personaje_id: int, db: Session = Depends(get_db)):
-    # Verificar existencia del personaje
-    personaje = db.query(models.Personaje).filter(models.Personaje.id == personaje_id).first()
+    personaje = db.query(models.Personaje).get(personaje_id)
     if not personaje:
         raise HTTPException(status_code=404, detail="Personaje no encontrado.")
 
-    # Obtener la misión más antigua en la cola (orden más bajo)
-    asignacion = (
-        db.query(models.PersonajeMision)
-        .filter(models.PersonajeMision.personaje_id == personaje_id)
-        .order_by(models.PersonajeMision.orden)
-        .first()
-    )
-
+    asignacion = db.query(models.PersonajeMision)\
+        .filter_by(personaje_id=personaje_id)\
+        .order_by(models.PersonajeMision.orden).first()
     if not asignacion:
         raise HTTPException(status_code=404, detail="No hay misiones para completar.")
 
     mision = asignacion.mision
-
-    # Eliminar la asignación y sumar XP
     db.delete(asignacion)
     personaje.xp += 50
     db.commit()
-
     return mision
