@@ -1,9 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models import Base
+import os
 
-# direccion de la base de datos
-DATABASE_URL = "sqlite:///./rpg.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, '../rpg.db')}"
+
 
 # crear el motor de la base de datos, la conexion con SQLite
 engine = create_engine(
