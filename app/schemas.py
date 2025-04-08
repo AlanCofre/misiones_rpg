@@ -1,30 +1,28 @@
-# Usaremos Pyantic para validar y estructurar los datos que entran o salen de mi API
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional
 
-# Esquema para crear un personaje
-class PersonajeCreate(BaseModel):
-    nombre: str
-
-#esquema para crear una mision
-class MisionCreate(BaseModel):
+class MisionBase(BaseModel):
     descripcion: str
-    
-# esquema para mostrar un personaje 
-class MisionSchema(BaseModel):
+
+class MisionCreate(MisionBase):
+    pass
+
+class MisionSchema(MisionBase):
     id: int
-    descripcion: str
+    personaje_id: Optional[int] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-class PersonajeSchema(BaseModel):
-    id: int
+class PersonajeBase(BaseModel):
     nombre: str
+
+class PersonajeCreate(PersonajeBase):
+    pass
+
+class PersonajeSchema(PersonajeBase):
+    id: int
     xp: int
-    misiones: Optional[List [MisionSchema]] = []
 
     class Config:
-        orm_mode = True
-
-
+        from_attributes = True

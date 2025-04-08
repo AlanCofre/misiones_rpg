@@ -2,7 +2,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, declarative_base
 
-# Base para los modelos ORM
+# Inicializa la base para definir tablas ORM
 Base = declarative_base()
 
 class Personaje(Base):
