@@ -13,7 +13,7 @@ class Personaje(Base):
     xp = Column(Integer, default=0)
 
     # realtionship() permite acceder a las realciones en ambos sentidos
-    misiones = relationship("Mision", back_populates="personaje")
+    misiones_en_cola = relationship("PersonajeMision", back_populates="personaje")
 
 class Mision(Base): 
     __tablename__ = "misiones"
@@ -21,5 +21,15 @@ class Mision(Base):
     id = Column(Integer, primary_key=True, index=True)
     descripcion = Column(String, nullable=False)
 
-    personaje_id = Column(Integer, ForeignKey("personajes.id"))
-    personaje = relationship("Personaje", back_populates="misiones")
+    asignaciones = relationship("PersonajeMision", back_populates="mision")
+
+class PersonajeMision(Base):
+    __tablename__ = "personaje_mision"
+
+    id = Column(Integer, primary_key=True )
+    personaje_id = Column(Integer, ForeignKey("perosnajes.id"))
+    mision_id = Column(Integer, ForeignKey("misiones.id"))
+    orden = Column(Integer, nullable=False)
+
+    personaje = relationship("Personaje", back_populates="misiones_en_cola")
+    mision = relationship("Mision", back_populates="asignaciones")
