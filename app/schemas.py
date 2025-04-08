@@ -9,7 +9,6 @@ class MisionCreate(MisionBase):
 
 class MisionSchema(MisionBase):
     id: int
-    personaje_id: Optional[int] = None
 
     class Config:
         from_attributes = True

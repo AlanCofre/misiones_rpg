@@ -27,9 +27,9 @@ class PersonajeMision(Base):
     __tablename__ = "personaje_mision"
 
     id = Column(Integer, primary_key=True )
-    personaje_id = Column(Integer, ForeignKey("perosnajes.id"))
+    personaje_id = Column(Integer, ForeignKey("personajes.id"))
     mision_id = Column(Integer, ForeignKey("misiones.id"))
     orden = Column(Integer, nullable=False)
 
     personaje = relationship("Personaje", back_populates="misiones_en_cola")
-    mision = relationship("Mision", back_populates="asignaciones")
+    mision = relationship("Mision", back_populates="asignaciones"   )
