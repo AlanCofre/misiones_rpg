@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 class MisionBase(BaseModel):
     descripcion: str
@@ -23,6 +23,20 @@ class PersonajeCreate(PersonajeBase):
 class PersonajeSchema(PersonajeBase):
     id: int
     xp: int
+
+    class Config:
+        from_attributes = True
+
+class PersonajeMisionBase(BaseModel):
+    personaje_id: int
+    mision_id: int
+
+class PersonajeMisionCreate(PersonajeMisionBase):
+    pass
+
+class PersonajeMisionSchema(PersonajeMisionBase):
+    id: int
+    orden: int
 
     class Config:
         from_attributes = True
