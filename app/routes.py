@@ -33,31 +33,81 @@ def crear_mision(mision: schemas.MisionCreate, db: Session = Depends(get_db)):
     cola_misiones.agregar_mision(nueva.id)
     return nueva
 
-@router.get("/cola", response_model=list[schemas.MisionSchema])
-def ver_cola(db: Session = Depends(get_db)):
-    ids = cola_misiones.obtener_todos_los_ids()
-    if not ids:
-        return []
-    misiones = db.query(models.Mision).filter(models.Mision.id.in_(ids)).all()
-    ordenadas = sorted(misiones, key=lambda m: ids.index(m.id))
-    return ordenadas
-
-@router.post("/personajes/{personaje_id}/misiones/{mision_id}", response_model=schemas.MisionSchema)
-def asignar_mision(personaje_id: int, db: Session = Depends(get_db)):
-    mision_id = cola_misiones.obtener_siguiente_mision()
-    if not mision_id:
-        raise HTTPException(status_code=404, detail="No hay misiones en la cola.")
-
-    mision = db.query(models.Mision).filter(models.Mision.id == mision_id).first()
-    if not mision:
-        raise HTTPException(status_code=404, detail="Misión no encontrada.")
+@router.post("/personajes/{personaje_id}/misiones/{mision_id}", response_model=schemas.PersonajeMisionSchema)
+def aceptar_mision(personaje_id: int, mision_id: int, db: Session = Depends(get_db)):
     
+    #verificar  existencia del personaje
     personaje = db.query(models.Personaje).filter(models.Personaje.id == personaje_id).first()
     if not personaje:
         raise HTTPException(status_code=404, detail="Personaje no encontrado.")
     
-    mision.personaje = personaje
-    personaje.xp += 10
+    #verificar exitencia de la mision
+    mision = db.query(models.Mision).filter(models.Mision.id == mision_id).first()
+    if not mision:
+        raise HTTPException(status_code=404, detail="Mision no encontrada.")
+    
+    #verificar si la mision ya fue asignada al personaje
+    existente = db.query(models.PersonajeMision).filter_by(personaje_id=personaje_id, mision_id=mision_id).first()
+    if existente:
+        raise HTTPException(status_code=404, detail="Esta mision ya está asignada al personaje.")
+    
+    #calcular orden: ultimo +1
+    ultimo = db.query(models.PersonajeMision).filter_by(personaje_id=personaje_id).order_by(models.PersonajeMision.orden.desc()).first()
+    nuevo_orden = ultimo.orden + 1 if ultimo else 0
+
+    asignacion = models.PersonajeMision(
+        personaje_id = personaje_id,
+        mision_id = mision_id,
+        orden = nuevo_orden
+    )
+
+    db.add(asignacion)
     db.commit()
-    db.refresh(mision)
+    db.refresh(asignacion)
+    return asignacion
+
+@router.get("/personajes/{personaje_id}/misiones", response_model=list[schemas.MisionSchema])
+def misiones_personaje(personaje_id: int, db: Session = Depends(get_db)):
+    # Verificar que el personaje exista
+    personaje = db.query(models.Personaje).filter(models.Personaje.id == personaje_id).first()
+    if not personaje:
+        raise HTTPException(status_code=404, detail="Personaje no encontrado.")
+
+    # Obtener asignaciones en orden FIFO
+    asignaciones = (
+        db.query(models.PersonajeMision)
+        .filter(models.PersonajeMision.personaje_id == personaje_id)
+        .order_by(models.PersonajeMision.orden)
+        .all()
+    )
+
+    # Obtener todas las misiones correspondientes
+    misiones = [a.mision for a in asignaciones]
+    return misiones
+
+@router.post("/personajes/{personaje_id}/completar", response_model=schemas.MisionSchema)
+def completar_mision(personaje_id: int, db: Session = Depends(get_db)):
+    # Verificar existencia del personaje
+    personaje = db.query(models.Personaje).filter(models.Personaje.id == personaje_id).first()
+    if not personaje:
+        raise HTTPException(status_code=404, detail="Personaje no encontrado.")
+
+    # Obtener la misión más antigua en la cola (orden más bajo)
+    asignacion = (
+        db.query(models.PersonajeMision)
+        .filter(models.PersonajeMision.personaje_id == personaje_id)
+        .order_by(models.PersonajeMision.orden)
+        .first()
+    )
+
+    if not asignacion:
+        raise HTTPException(status_code=404, detail="No hay misiones para completar.")
+
+    mision = asignacion.mision
+
+    # Eliminar la asignación y sumar XP
+    db.delete(asignacion)
+    personaje.xp += 50
+    db.commit()
+
     return mision
